@@ -1,0 +1,13 @@
+[
+  {"id": "R1", "column": "Employee_ID", "type": "unique", "description": "Employee_ID must be unique"},
+  {"id": "R2", "column": "Employee_ID", "type": "pattern", "value": "^EMP\\d{4}$", "description": "Employee_ID must look like EMP1234"},
+  {"id": "R3", "column": "Age", "type": "min_value", "value": 18, "description": "Employees must be at least 18"},
+  {"id": "R4", "column": "Age", "type": "max_value", "value": 70, "description": "Age cannot be over 70"},
+  {"id": "R5", "column": "Salary", "type": "min_value", "value": 0, "description": "Salary cannot be negative"},
+  {"id": "R6", "column": "Status", "type": "allowed_values", "values": ["Active", "Inactive", "Pending"], "description": "Status must be Active, Inactive or Pending"},
+  {"id": "R7", "column": "Performance_Score", "type": "allowed_values", "values": ["Excellent", "Good", "Average", "Poor"], "description": "Performance_Score must be Excellent, Good, Average or Poor"},
+  {"id": "R8", "column": "Remote_Work", "type": "allowed_values", "values": ["TRUE", "FALSE"], "description": "Remote_Work must be TRUE or FALSE"},
+  {"id": "R9", "column": "Email", "type": "pattern", "value": "^[^@\\s]+@[^@\\s]+\\.[a-zA-Z]{2,}$", "description": "Email must be a valid email address"},
+  {"id": "R10", "column": "Email", "type": "unique", "description": "Each employee must have their own email"},
+  {"id": "R11", "column": "Phone", "type": "pattern", "value": "^\\d{10}$", "description": "Phone must be 10 digits"}
+]

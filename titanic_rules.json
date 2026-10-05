@@ -1,0 +1,71 @@
+[
+  {
+    "id": "R1",
+    "column": "PassengerId",
+    "type": "unique",
+    "description": "PassengerId must be unique"
+  },
+  {
+    "id": "R2",
+    "column": "Survived",
+    "type": "allowed_values",
+    "values": [0, 1],
+    "description": "Survived must be 0 or 1"
+  },
+  {
+    "id": "R3",
+    "column": "Pclass",
+    "type": "allowed_values",
+    "values": [1, 2, 3],
+    "description": "Pclass must be 1, 2 or 3"
+  },
+  {
+    "id": "R4",
+    "column": "Sex",
+    "type": "allowed_values",
+    "values": ["male", "female"],
+    "description": "Sex must be male or female"
+  },
+  {
+    "id": "R5",
+    "column": "Age",
+    "type": "min_value",
+    "value": 0,
+    "description": "Age cannot be negative"
+  },
+  {
+    "id": "R6",
+    "column": "Age",
+    "type": "max_value",
+    "value": 100,
+    "description": "Age cannot be over 100"
+  },
+  {
+    "id": "R7",
+    "column": "SibSp",
+    "type": "min_value",
+    "value": 0,
+    "description": "SibSp cannot be negative"
+  },
+  {
+    "id": "R8",
+    "column": "Parch",
+    "type": "min_value",
+    "value": 0,
+    "description": "Parch cannot be negative"
+  },
+  {
+    "id": "R9",
+    "column": "Fare",
+    "type": "min_value",
+    "value": 0,
+    "description": "Fare cannot be negative"
+  },
+  {
+    "id": "R10",
+    "column": "Embarked",
+    "type": "allowed_values",
+    "values": ["C", "Q", "S"],
+    "description": "Embarked must be C, Q or S"
+  }
+]

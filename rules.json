@@ -1,0 +1,6 @@
+[
+  {"id": "R1", "column": "Order_ID", "type": "unique", "description": "Order_ID must be unique"},
+  {"id": "R2", "column": "Revenue", "type": "min_value", "value": 0, "description": "Revenue cannot be negative"},
+  {"id": "R3", "column": "Province", "type": "canadian_province", "description": "Province must be a Canadian province"},
+  {"id": "R4", "column": "Quantity", "type": "min_value", "value": 1, "description": "Quantity must be at least 1"}
+]
