@@ -1,10 +1,9 @@
-cd[theme]
-primaryColor = "#4f6fff"
-backgroundColor = "#f6f8fb"
-secondaryBackgroundColor = "#eef1f5"
-textColor = "#0b1220"
+   [theme]
+   primaryColor = "#4f6fff"
+   backgroundColor = "#f6f8fb"
+   secondaryBackgroundColor = "#eef1f5"
+   textColor = "#0b1220"
 
-[client]
-toolbarMode = "minimal"
-# Testers see the error message only, never the code lines (stack trace)
-showErrorDetails = "type"
+   [client]
+   toolbarMode = "minimal"
+   showErrorDetails = "type"
