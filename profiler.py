@@ -548,6 +548,129 @@ def detect_rule_violations(df, rules):
 
 
 # ---------------------------------------------------------------------------
+# Automatic business-rule inference
+# ---------------------------------------------------------------------------
+
+def infer_rules(df):
+    """
+    Infer conservative business rules from the dataset itself.
+
+    These rules are only used when the user did not provide a rules JSON.
+    Rules are based on column names and observed data patterns rather than
+    assuming a particular dataset schema.
+    """
+    rules = []
+
+    for col in df.columns:
+        s = df[col]
+        non_missing = s[~s.map(is_missing)]
+
+        if non_missing.empty:
+            continue
+
+        col_lower = str(col).strip().lower().replace(" ", "_")
+
+        # ID-like columns should normally be unique.
+        if looks_like_id(col):
+            rules.append({
+                "id": f"AUTO_{len(rules) + 1}",
+                "column": col,
+                "type": "unique",
+                "description": f"{col} should contain unique identifiers."
+            })
+
+        # Canadian province columns can be checked against the known
+        # province/territory vocabulary.
+        if "province" in col_lower:
+            rules.append({
+                "id": f"AUTO_{len(rules) + 1}",
+                "column": col,
+                "type": "canadian_province",
+                "description": f"{col} should contain a valid Canadian province or territory."
+            })
+
+        # Financial/amount columns should not normally contain negative
+        # values. This is deliberately limited to clearly monetary fields.
+        if any(word in col_lower for word in (
+            "revenue", "amount", "price", "cost", "sales", "income",
+            "expense", "profit", "fare", "salary", "payment"
+        )):
+            numbers = non_missing.map(to_number).dropna()
+
+            if len(numbers) > 0 and (numbers >= 0).mean() >= 0.8:
+                rules.append({
+                    "id": f"AUTO_{len(rules) + 1}",
+                    "column": col,
+                    "type": "min_value",
+                    "value": 0,
+                    "description": f"{col} should not contain negative values."
+                })
+
+    return rules
+
+
+def split_rules(df, rules):
+    """
+    Separate rules that apply to this dataset from rules that do not.
+
+    This allows a user to provide a rules JSON created for another dataset
+    without causing DataMedic to crash.
+    """
+    usable = []
+    skipped = []
+
+    if not rules:
+        return usable, skipped
+
+    if isinstance(rules, dict):
+        rules = rules.get("rules", [])
+
+    supported_types = {
+        "unique",
+        "not_null",
+        "min_value",
+        "max_value",
+        "allowed_values",
+        "canadian_province",
+        "pattern",
+    }
+
+    for rule in rules:
+        if not isinstance(rule, dict):
+            skipped.append(str(rule))
+            continue
+
+        rule_id = rule.get("id", "UNKNOWN")
+        column = rule.get("column")
+        rule_type = rule.get("type")
+
+        if not column or column not in df.columns:
+            skipped.append(rule_id)
+            continue
+
+        if rule_type not in supported_types:
+            skipped.append(rule_id)
+            continue
+
+        # Validate required fields for rule types that need them.
+        if rule_type in {"min_value", "max_value"} and "value" not in rule:
+            skipped.append(rule_id)
+            continue
+
+        if rule_type == "allowed_values" and "values" not in rule:
+            skipped.append(rule_id)
+            continue
+
+        if rule_type == "pattern" and "value" not in rule:
+            skipped.append(rule_id)
+            continue
+
+        usable.append(rule)
+
+    return usable, skipped
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
