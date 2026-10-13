@@ -24,11 +24,6 @@ Usage:
     python profiler.py messy_retail.csv                                  # summary
     python profiler.py messy_retail.csv --rules rules.json               # + business rules
     python profiler.py messy_retail.csv --rules rules.json --json out.json   # save full profile
-    python profiler.py any_file.csv --rules auto                          # rules made automatically
-    python profiler.py any_file.csv --suggest-rules auto_rules.json       # save suggested rules
-
-Rules that don't fit the dataset (e.g. a column that isn't in the file) are skipped with a
-note, never a crash. If NONE fit, automatic rules are used instead.
 """
 
 import json
@@ -107,7 +102,19 @@ def load_data(path):
 # ---------------------------------------------------------------------------
 
 def is_missing(value):
-    return value is None or str(value).strip().lower() in MISSING_TOKENS
+    """Return True only for genuinely missing values or recognized missing tokens."""
+    if value is None:
+        return True
+
+    try:
+        if pd.isna(value):
+            return True
+    except (TypeError, ValueError):
+        pass
+
+    text = str(value).strip().lower()
+
+    return bool(text in MISSING_TOKENS)
 
 
 def to_number(value):
@@ -172,16 +179,8 @@ def shape_of(value):
     return s
 
 
-# Columns whose name says "number" but that are NOT supposed to be unique
-NOT_ID_WORDS = ("phone", "tel", "mobile", "cell", "fax", "contact", "street", "house", "zip", "postal")
-
-
 def looks_like_id(col_name):
-    """Column names that suggest a unique key (Order_ID, PassengerId, Invoice Number).
-    Phone numbers, postal codes, etc. are excluded: repeats there are normal."""
     name = col_name.lower().replace(" ", "_")
-    if any(w in name for w in NOT_ID_WORDS):
-        return False
     return name == "id" or name.endswith("_id") or name.endswith("id") or "number" in name
 
 
@@ -387,60 +386,18 @@ def detect_dates(df, col, prof):
     formats = prof.get("date_formats", {})
     if len(formats) > 1:
         main = max(formats, key=formats.get)
-        # Ambiguous dates are reported separately (they need a human), so only
-        # count dates here that CAN be converted. Once those are fixed, this issue
-        # disappears even if ambiguous dates are still waiting for review.
-        mask = s.map(lambda v: not is_missing(v) and date_format_of(v) not in (None, main)
-                     and not is_ambiguous_date(v))
-        if mask.any():
-            out.append(issue(col, df.index[mask], "mixed_date_formats", "medium",
-                             f"Dates use {len(formats)} formats: {formats}; most common is {main}. "
-                             f"{int(mask.sum())} unambiguous dates can be converted to {main}.",
-                             values=value_counts(s[mask]), main_format=main))
-
-    # Clues from the UNambiguous dates: in '11/27/2021' the 27 can only be a day,
-    # so this file writes month first. Used as evidence, never to silently fix.
-    month_first = day_first = 0
-    for v in s[~s.map(is_missing)]:
-        m = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{2}|\d{4})$", str(v).strip())
-        if m:
-            a, b = int(m.group(1)), int(m.group(2))
-            if a <= 12 < b:
-                month_first += 1
-            elif b <= 12 < a:
-                day_first += 1
-    clue_total = month_first + day_first
-    inferred = None
-    if clue_total >= 5:
-        if month_first / clue_total >= 0.95:
-            inferred = "month_first"
-        elif day_first / clue_total >= 0.95:
-            inferred = "day_first"
+        mask = s.map(lambda v: not is_missing(v) and date_format_of(v) not in (None, main))
+        out.append(issue(col, df.index[mask], "mixed_date_formats", "medium",
+                         f"Dates use {len(formats)} formats: {formats}; most common is {main}",
+                         values=value_counts(s[mask]), main_format=main))
 
     amb = s.map(lambda v: not is_missing(v) and is_ambiguous_date(v))
     if amb.any():
         examples = s[amb].unique()[:5].tolist()
-        evidence = (f"{int(amb.sum())} dates can't be read safely (day/month order unknown), "
-                    f"e.g. {examples}. Needs human review, do not guess.")
-        if inferred:
-            order = "month-first (M/D/YYYY)" if inferred == "month_first" else "day-first (D/M/YYYY)"
-            evidence += (f" Clue: all {clue_total} unambiguous dates in this column are {order}, "
-                         f"so these are very likely {order} too.")
-        out.append(issue(col, df.index[amb], "ambiguous_date", "high", evidence,
-                         values=value_counts(s[amb]), inferred_order=inferred,
-                         clue_counts={"month_first": month_first, "day_first": day_first}))
-
-    # Whole column in one non-standard format (e.g. every date is M/D/YYYY):
-    # the unambiguous ones can be converted to YYYY-MM-DD safely.
-    if formats and max(formats, key=formats.get) != "YYYY-MM-DD":
-        convertible = s.map(lambda v: not is_missing(v) and not is_ambiguous_date(v)
-                            and date_format_of(v) not in (None, "YYYY-MM-DD"))
-        if convertible.any():
-            out.append(issue(col, df.index[convertible], "non_standard_date_format", "medium",
-                             f"{int(convertible.sum())} unambiguous dates aren't in the standard "
-                             f"YYYY-MM-DD format, e.g. {s[convertible].unique()[:5].tolist()}. "
-                             f"They can be converted safely.",
-                             values=value_counts(s[convertible]), target_format="YYYY-MM-DD"))
+        out.append(issue(col, df.index[amb], "ambiguous_date", "high",
+                         f"{int(amb.sum())} dates can't be read safely (day/month order unknown), "
+                         f"e.g. {examples}. Needs human review, do not guess.",
+                         values=value_counts(s[amb])))
 
     unparseable = s.map(lambda v: not is_missing(v) and date_format_of(v) is None)
     if unparseable.any():
@@ -575,108 +532,9 @@ def rule_failures(df, rule):
     raise ValueError(f"Unknown rule type '{kind}' in rule {rule.get('id')}")
 
 
-KNOWN_RULE_TYPES = {"unique", "not_null", "min_value", "max_value", "allowed_values",
-                    "canadian_province", "pattern"}
-
-
-def split_rules(df, rules):
-    """Separate rules that fit this dataset from ones that don't (wrong column or type),
-    so a rules file written for another dataset never crashes the run."""
-    usable, skipped = [], []
-    for rule in rules or []:
-        rid = rule.get("id", "?")
-        if rule.get("column") not in df.columns:
-            skipped.append(f"{rid}: column '{rule.get('column')}' is not in this file")
-        elif rule.get("type") not in KNOWN_RULE_TYPES:
-            skipped.append(f"{rid}: unknown rule type '{rule.get('type')}'")
-        else:
-            usable.append(rule)
-    return usable, skipped
-
-
-def shape_to_regex(shape):
-    """'AAA-9999' -> '^[A-Za-z]{3}\\-\\d{4}$'"""
-    out = ""
-    for ch, group in groupby_runs(shape):
-        n = len(group)
-        token = r"[A-Za-z]" if ch == "A" else r"\d" if ch == "9" else re.escape(ch)
-        out += token + (f"{{{n}}}" if n > 1 else "")
-    return f"^{out}$"
-
-
-def groupby_runs(s):
-    runs, prev, buf = [], None, ""
-    for ch in s:
-        if ch == prev:
-            buf += ch
-        else:
-            if buf:
-                runs.append((prev, buf))
-            prev, buf = ch, ch
-    if buf:
-        runs.append((prev, buf))
-    return runs
-
-
-def infer_rules(df):
-    """Suggest sensible business rules from the data itself, so no rules file is needed.
-    Conservative on purpose: only rules that are almost certainly true for this kind of column."""
-    rules = []
-
-    def add(column, type_, description, **extra):
-        rules.append({"id": f"A{len(rules) + 1}", "column": column, "type": type_,
-                      "description": description, "source": "auto", **extra})
-
-    for col in df.columns:
-        prof = profile_column(df, col)
-        kind, name = prof["kind"], col.lower()
-        s = df[col][~df[col].map(is_missing)].map(lambda v: str(v).strip())
-        if s.empty:
-            continue
-
-        if kind == "identifier" or (looks_like_id(col) and prof["unique_ratio"] > 0.8):
-            add(col, "unique", f"{col} must be unique")
-            shapes = s.map(shape_of).value_counts()
-            if shapes.iloc[0] / len(s) >= 0.95 and any(c in shapes.index[0] for c in "A9"):
-                add(col, "pattern", f"{col} must look like '{s[s.map(shape_of) == shapes.index[0]].iloc[0]}'",
-                    value=shape_to_regex(shapes.index[0]))
-            continue
-
-        if "email" in name:
-            add(col, "pattern", f"{col} must be a valid email address",
-                value=r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
-            continue
-
-        if "phone" in name or "mobile" in name:
-            add(col, "pattern", f"{col} must be a valid phone number (at least 10 digits, no minus sign)",
-                value=r"^\+?\(?\d[\d\s().-]{8,}\d$")
-            continue
-
-        if kind == "categorical":
-            province_share = s.map(lambda v: canonical_value(v) in PROVINCE_VARIANTS).mean()
-            if province_share >= 0.7:
-                add(col, "canadian_province", f"{col} must be a Canadian province")
-            continue
-
-        if kind == "numeric":
-            nums = s.map(to_number).dropna()
-            if nums.empty:
-                continue
-            if re.search(r"\bage\b|^age|age$", name):
-                add(col, "min_value", f"{col} cannot be negative", value=0)
-                add(col, "max_value", f"{col} cannot be over 120", value=120)
-            elif re.search(r"qty|quantity|units", name):
-                add(col, "min_value", f"{col} must be at least 1", value=1)
-            elif (nums >= 0).mean() >= 0.90:
-                # Almost everything is positive, so the few negatives are likely errors
-                add(col, "min_value", f"{col} cannot be negative", value=0)
-    return rules
-
-
 def detect_rule_violations(df, rules):
-    rules, _ = split_rules(df, rules)
     out = []
-    for rule in rules:
+    for rule in rules or []:
         mask = rule_failures(df, rule)
         if not mask.any():
             continue
@@ -719,7 +577,6 @@ def profile_dataset(df, rules=None):
 
     total_cells = df.shape[0] * df.shape[1]
     missing_cells = sum(c["missing_count"] for c in columns)
-    used_rules, skipped_rules = split_rules(df, rules)
     summary = {
         "profiled_at": datetime.now().isoformat(timespec="seconds"),
         "rows": int(df.shape[0]),
@@ -729,8 +586,6 @@ def profile_dataset(df, rules=None):
         "issue_count": len(issues),
         "issues_by_severity": {s: sum(1 for i in issues if i["severity"] == s) for s in severity_order},
         "issues_by_type": pd.Series([i["type"] for i in issues]).value_counts().to_dict() if issues else {},
-        "rules_used": len(used_rules),
-        "rules_skipped": skipped_rules,
     }
     return {"summary": summary, "columns": columns, "issues": issues}
 
@@ -739,11 +594,7 @@ def print_report(result):
     s = result["summary"]
     print(f"\nDataset: {s['rows']} rows x {s['columns']} columns")
     print(f"Missing cells: {s['missing_cells']} ({s['missing_cell_rate']:.1%})")
-    print(f"Issues found: {s['issue_count']}  {s['issues_by_severity']}")
-    print(f"Business rules checked: {s.get('rules_used', 0)}")
-    for skipped in s.get("rules_skipped", []):
-        print(f"  (skipped rule {skipped})")
-    print()
+    print(f"Issues found: {s['issue_count']}  {s['issues_by_severity']}\n")
     print("Columns:")
     for c in result["columns"]:
         print(f"  - {c['column']:<15} {c['kind']:<12} missing {c['missing_rate']:.0%}, "
@@ -758,29 +609,11 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    data = load_data(sys.argv[1])
     rules = None
     if "--rules" in sys.argv:
-        rules_arg = sys.argv[sys.argv.index("--rules") + 1]
-        if rules_arg == "auto":
-            rules = infer_rules(data)
-        else:
-            with open(rules_arg, encoding="utf-8") as f:
-                rules = json.load(f)
-            if rules and not split_rules(data, rules)[0]:
-                print(f"Note: none of the rules in {rules_arg} fit this dataset, "
-                      f"so DataMedic is using automatic rules instead.")
-                rules = infer_rules(data)
-    if "--suggest-rules" in sys.argv:
-        out_rules = sys.argv[sys.argv.index("--suggest-rules") + 1]
-        suggested = infer_rules(data)
-        with open(out_rules, "w", encoding="utf-8") as f:
-            json.dump(suggested, f, indent=2)
-        print(f"Suggested {len(suggested)} rules -> {out_rules}")
-        for r in suggested:
-            print(f"  {r['id']:<4} {r['description']}")
-        if "--json" not in sys.argv and "--rules" not in sys.argv:
-            sys.exit(0)
+        with open(sys.argv[sys.argv.index("--rules") + 1], encoding="utf-8") as f:
+            rules = json.load(f)
+    data = load_data(sys.argv[1])
     result = profile_dataset(data, rules)
     print_report(result)
     if "--json" in sys.argv:
