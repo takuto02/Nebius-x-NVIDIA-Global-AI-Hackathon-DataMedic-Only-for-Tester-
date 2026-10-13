@@ -33,6 +33,7 @@ rebuild the report and score for that run:
 """
 
 import json
+import pandas as pd
 import os
 import subprocess
 import sys
