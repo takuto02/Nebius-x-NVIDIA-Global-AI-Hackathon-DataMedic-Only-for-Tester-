@@ -144,10 +144,10 @@ def main():
             "The uploaded CSV is empty and contains no columns or data. "
             "Please upload a CSV containing at least one column."
         )
-        st.stop()
+        return
     except Exception as e:
         st.error(f"Could not read the uploaded CSV: {e}")
-        st.stop()
+        return
 
     chosen = None
     if rules:
