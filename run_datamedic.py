@@ -134,7 +134,19 @@ def main():
 
     # ---- Choose the business rules (never crash on a mismatch) ----
     from profiler import infer_rules, load_data, split_rules
-    data = load_data(dataset)
+
+    try:
+        data = load_data(dataset)
+    except pd.errors.EmptyDataError:
+        st.error(
+            "The uploaded CSV is empty and contains no columns or data. "
+            "Please upload a CSV containing at least one column."
+        )
+        st.stop()
+    except Exception as e:
+        st.error(f"Could not read the uploaded CSV: {e}")
+        st.stop()
+
     chosen = None
     if rules:
         usable, skipped = split_rules(data, json.load(open(rules, encoding="utf-8")))
