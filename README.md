@@ -292,19 +292,19 @@ Testing covered:
 
 ### Primary Contributors
 
-- **Jason** — Project Lead, Reasoning Lead, Profiling, Validation & Health Score Engineer, Frontend Engineer, Product & Pitch
-- **Ria** — Agent Architect, Repair Tools Engineer, Backend & Infrastructure Engineer, Product & Pitch
+- **Jason Thai** — Project Lead, Reasoning Lead, Profiling, Validation & Health Score Engineer, Frontend Engineer, Product & Pitch
+- **Ria Chahar** — Agent Architect, Repair Tools Engineer, Backend & Infrastructure Engineer, Product & Pitch
 
 ### Testing & QA
 
-- **Omer** — Application Testing & QA Feedback
+- **Omer Irfan** — Application Testing & QA Feedback
 
 ### Additional Team Members
 
-- **Prabal**
-- **Nashwa**
-- **Shreya**
-- **Jesika**
+- **Prabal Pratap Sharma**
+- **Nashwa Meher Ahmed Lnu**
+- **Shreya Vinod Gupta**
+- **Jesika Dasadia**
 
 ---
 
