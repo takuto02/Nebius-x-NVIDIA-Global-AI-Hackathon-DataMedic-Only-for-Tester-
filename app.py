@@ -322,7 +322,7 @@ if not run_name:
             before = set(runs)
             with st.status("DataMedic is working...", expanded=True) as status:
                 st.write("Profiling every column, asking Nemotron for repairs, applying the safe ones "
-                         "and re-checking each one. This takes about 20 seconds.")
+                         "and re-checking each one. Your analysis will be ready shortly.")
                 ok, out = run(args)
                 status.update(label="Analysis complete" if ok else "Something went wrong",
                               state="complete" if ok else "error")
