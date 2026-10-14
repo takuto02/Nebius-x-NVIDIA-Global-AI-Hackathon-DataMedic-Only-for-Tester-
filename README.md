@@ -288,6 +288,26 @@ Testing covered:
 
 ---
 
+## Team & Contributions
+
+### Primary Contributors
+
+- **Jason** — Project Lead, Reasoning Lead, Profiling, Validation & Health Score Engineer, Frontend Engineer, Product & Pitch
+- **Ria** — Agent Architect, Repair Tools Engineer, Backend & Infrastructure Engineer, Product & Pitch
+
+### Testing & QA
+
+- **Omer** — Application Testing & QA Feedback
+
+### Additional Team Members
+
+- **Prabal**
+- **Nashwa**
+- **Shreya**
+- **Jesika**
+
+---
+
 ## Hackathon
 
 Built for the **Nebius × NVIDIA Global AI Hackathon**.
