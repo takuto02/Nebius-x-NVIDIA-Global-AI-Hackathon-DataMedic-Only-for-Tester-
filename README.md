@@ -254,6 +254,14 @@ Then:
 
 ## Tested Workflows
 
+### 100% Detection in Synthetic Evaluation
+
+DataMedic detected **100% of the intentionally planted data-quality errors in our synthetic evaluation dataset across the tested error categories**.
+
+Each detected issue is tracked through DataMedic's workflow—from profiling and Nemotron reasoning through repair, validation, human review, and the final audit trail.
+
+> **100% refers to the controlled synthetic evaluation and is not a guarantee of detecting every possible error in arbitrary real-world datasets.**
+
 DataMedic has been tested with both synthetic and external datasets.
 
 Testing covered:
